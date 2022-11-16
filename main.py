@@ -1,43 +1,150 @@
+from flask import Response, Flask, request
+from threading import Thread, Lock
+#from classes.CSICamera import CSICamera
+from classes.IFormula import IFormula
 
-from flask import Flask, Response, request
-import cv2
+import time
 
-app = Flask(__name__)
-video = cv2.VideoCapture(0)
+class CSICamera:
+    '''
+    Camera for Jetson Nano IMX219 based camera
+    Credit: https://github.com/feicccccccc/donkeycar/blob/dev/donkeycar/parts/camera.py
+    gstreamer init string from https://github.com/NVIDIA-AI-IOT/jetbot/blob/master/jetbot/camera.py
+    '''
 
-@app.route('/')
-def index():
-    print('Hacker no luck')
-    return "Default Message"
+    def gstreamer_pipeline(self, capture_width=3280, capture_height=2464, output_width=720, output_height=480,
+                           framerate=21, flip_method=0):
+        return 'nvarguscamerasrc ! video/x-raw(memory:NVMM), width=%d, height=%d, format=(string)NV12, framerate=(fraction)%d/1 ! nvvidconv flip-method=%d ! nvvidconv ! video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! videoconvert ! appsink' % (
+            capture_width, capture_height, framerate, flip_method, output_width, output_height)
 
-def gen(video):    
+    def __init__(self, image_w=160, image_h=120, image_d=3, capture_width=3280, capture_height=2464, framerate=60,
+                 gstreamer_flip=0):
+        '''
+        gstreamer_flip = 0 - no flip
+        gstreamer_flip = 1 - rotate CCW 90
+        gstreamer_flip = 2 - flip vertically
+        gstreamer_flip = 3 - rotate CW 90
+        '''
+        self.w = image_w
+        self.h = image_h
+        self.running = True
+        self.frame = None
+        self.flip_method = gstreamer_flip
+        self.capture_width = capture_width
+        self.capture_height = capture_height
+        self.framerate = framerate
+
+    def init_camera(self):
+        import cv2
+
+        # initialize the camera and stream
+        self.camera = cv2.VideoCapture(
+            self.gstreamer_pipeline(
+                capture_width=self.capture_width,
+                capture_height=self.capture_height,
+                output_width=self.w,
+                output_height=self.h,
+                framerate=self.framerate,
+                flip_method=self.flip_method),
+            cv2.CAP_GSTREAMER)
+
+        self.poll_camera()
+        print('CSICamera loaded.. .warming camera')
+        time.sleep(2)
+
+    def update(self):
+        self.init_camera()
+        while self.running:
+            self.poll_camera()
+
+    def poll_camera(self):
+        global video_frame, thread_lock
+        import cv2
+        self.ret, frame = self.camera.read()
+        if frame is not None:
+            with thread_lock:
+                video_frame = frame.copy()
+
+            self.frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    def run(self):
+        self.poll_camera()
+
+        return self.frame
+
+    def run_threaded(self):
+        return self.frame
+
+    def shutdown(self):
+        self.running = False
+        print('stopping CSICamera')
+        time.sleep(.5)
+        del self.camera
+
+
+
+
+global video_frame
+video_frame = None
+
+global thread_lock
+thread_lock = Lock()
+
+
+def encodeFrame():
+    global thread_lock
+    import cv2
     while True:
-        success, image = video.read()
-        ret, jpeg = cv2.imencode('.jpg', image)
-        frame = jpeg.tobytes()
+        # Acquire thread_lock to access the global video_frame object
+        with thread_lock:
+            global video_frame
+            if video_frame is None:
+                continue
+            return_key, encoded_image = cv2.imencode(".jpg", video_frame)
+            if not return_key:
+                continue
 
-@app.route('/video_feed')
-def video_feed():
-    print('someone request stream video...')
-    global video
-    return Response(gen(video), mimetype='multipart/x-mixed-replace; boundary=frame')
+        # Output image as a byte array
+        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
+               bytearray(encoded_image) + b'\r\n')
+        
+        
+
+# Create the Flask object for the application
+app = Flask(__name__)
+
+@app.route("/camlive")
+def streamFrames():
+    return Response(encodeFrame(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 @app.route('/controls')
-def control():
-    user = request.args.get('c')
-    if user== '1':
+def controls():
+    i = request.args.get('c')
+    if i== '1':
+        mini_i_formula.forward()
         print('start')
-    elif user=='2':
+    elif i=='2':
+        mini_i_formula.left()
         print('left')
-    elif user=='3':
+    elif i=='3':
+        mini_i_formula.right()
         print('right')
     else:
+        mini_i_formula.stop()
         print('stop')
 
-    return "Controls"
+    return "done"
 
 
-if __name__ == '__main__':    
-    print('Endpoints ready.')
-    app.run(host='0.0.0.0', port=12321, threaded=True)
+if __name__ == '__main__':
+    cam = CSICamera(image_w=720, image_h=480, capture_width=1080, capture_height=720)
+    mini_i_formula = IFormula(0.5)
     
+    # Create a thread and attach the method that captures the image frames, to it
+    process_thread = Thread(target=cam.update)
+    process_thread.daemon = True
+
+    # Start the thread
+    process_thread.start()
+
+    app.run("0.0.0.0", port="12321")
