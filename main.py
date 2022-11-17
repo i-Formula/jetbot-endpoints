@@ -113,6 +113,10 @@ def encodeFrame():
 # Create the Flask object for the application
 app = Flask(__name__)
 
+@app.route("/")
+def name():
+    return "i-Formula - Noob One"
+
 @app.route("/camlive")
 def streamFrames():
     return Response(encodeFrame(), mimetype="multipart/x-mixed-replace; boundary=frame")
@@ -129,11 +133,14 @@ def controls():
     elif i=='3':
         mini_i_formula.right()
         print('right')
+    elif i=='4':
+        mini_i_formula.backward()
+        action = 'backward'
     else:
         mini_i_formula.stop()
-        print('stop')
+        action = 'stop'
 
-    return "done"
+    return action
 
 
 if __name__ == '__main__':
