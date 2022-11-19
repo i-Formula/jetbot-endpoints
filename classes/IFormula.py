@@ -37,10 +37,6 @@ class IFormula:
         else:
             self.robot.stop()
     
-    def speedup(self):
-        if self.speed<0.5:
-            self.speed += 0.1
-    
-    def slowdown(self):
-        if self.speed>0:
-            self.speed -= 0.1
+    def speedchanged(self, s):
+        self.speed = float(s)/10
+        print(f'Speed changed to {self.speed}')
