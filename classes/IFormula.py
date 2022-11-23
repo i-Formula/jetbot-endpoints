@@ -23,7 +23,7 @@ class IFormula:
         
     def left(self):
         self.robot.left(self.speed)
-        time.sleep(self.speed)
+        time.sleep(0.1)
         if self.status:
             self.robot.forward(self.speed)
         else:
@@ -31,7 +31,7 @@ class IFormula:
     
     def right(self):
         self.robot.right(self.speed)
-        time.sleep(self.speed)
+        time.sleep(0.1)
         if self.status:
             self.robot.forward(self.speed)
         else:
