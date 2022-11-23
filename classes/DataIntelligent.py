@@ -44,7 +44,7 @@ class DataIntelligent:
         left = str(len(os.listdir(self.left_dir)))
         right = str(len(os.listdir(self.right_dir)))
         
-        jsonTxt = "{'free': " + free +", 'blocked': " + blocked + ", 'left': " + left + ", 'right': "+ right + "}"
+        jsonTxt = "{\"free\": " + free +", \"blocked\": " + blocked + ", \"left\": " + left + ", \"right\": "+ right + "}"
          
         return jsonTxt
     
