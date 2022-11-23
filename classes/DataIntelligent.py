@@ -1,4 +1,4 @@
-import os
+import os, shutil
 from uuid import uuid1
 
 class DataIntelligent:
@@ -8,7 +8,7 @@ class DataIntelligent:
         self.free_dir = 'i/free'
         self.left_dir = 'i/left'
         self.right_dir = 'i/right'
-        print(os.getcwd())
+        
         try:
             os.makedirs(self.free_dir)
             os.makedirs(self.blocked_dir)
@@ -27,48 +27,25 @@ class DataIntelligent:
             f.write(image.value)
     
     def saveFree(self):
-        return os.path.join(self.free_dir, f'{str(uuid1())}.jpg' )
-        #try: 
-        #    self.__save_snapshot(self.free_dir, image)
-        #    return 'Save successfully'
-        #except:
-        #    return 'Save failed'
-            
+        return os.path.join(self.free_dir, f'{str(uuid1())}.jpg' )            
     
     def saveBlocked(self):
         return os.path.join(self.blocked_dir, f'{str(uuid1())}.jpg' )
-        #try:
-        #    self.__save_snapshot(self.blocked_dir, image)
-        #    return 'Save successfully'
-        #except:
-        #    return 'Save failed'
     
     def saveLeft(self):
         return os.path.join(self.left_dir, f'{str(uuid1())}.jpg' )
-
-        #try:
-        #    self.__save_snapshot(self.left_dir, image)
-        #    return 'Save successfully'
-        #except:
-        #    return 'Save failed'
     
     def saveRight(self):
         return os.path.join(self.right_dir, f'{str(uuid1())}.jpg' )
-
-        #try:
-        #    self.__save_snapshot(self.right_dir, image)
-        #    return 'Save successfully'
-        #except:
-        #    return 'Save failed'
         
     def count(self):
-        free = len(os.listdir(self.free_dir))
-        blocked = len(os.listdir(self.blocked_dir))
-        left = len(os.listdir(self.left_dir))
-        right = len(os.listdir(self.right_dir))
+        free = str(len(os.listdir(self.free_dir)))
+        blocked = str(len(os.listdir(self.blocked_dir)))
+        left = str(len(os.listdir(self.left_dir)))
+        right = str(len(os.listdir(self.right_dir)))
         
-        jsonTxt = f"\{'free': {free}, 'blocked': {block}, 'left': {left}, 'right': {right} \}"
-        
+        jsonTxt = "{'free': " + free +", 'blocked': " + blocked + ", 'left': " + left + ", 'right': "+ right + "}"
+         
         return jsonTxt
     
     def getSnapshot(self):
@@ -91,3 +68,6 @@ class DataIntelligent:
         
     def snapstatus(self):
         return self.ssstatus
+    
+    def removeAllData(self):
+        shutil.rmtree('i', ignore_errors=True)
