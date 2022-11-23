@@ -3,8 +3,11 @@ from threading import Thread, Lock
 #from classes.CSICamera import CSICamera
 from classes.IFormula import IFormula
 from classes.DataIntelligent import DataIntelligent
+from classes.AITraining import AITraining
+#from classes.AIExecute import AIExecute
 
 import time
+import json
 
 class CSICamera:
     '''
@@ -94,6 +97,9 @@ global thread_lock
 thread_lock = Lock()
 
 data = DataIntelligent()
+training = AITraining()
+requestvideo = False
+auto = False
 
 def encodeFrame():
     global thread_lock
@@ -111,28 +117,34 @@ def encodeFrame():
             if not return_key:
                 continue
             else:
+                print(auto)
                 if data.getSnapshot():
                     try:
                         if data.getPhotocat()=='1':  #free
                             cv2.imwrite(data.saveFree(), video_frame)
-
+                            #data.setStatus(data.saveFree(encoded_image))
+                            #print(data.snapstatus())
                         elif data.getPhotocat()=='2': #left
                             cv2.imwrite(data.saveLeft(), video_frame)
-
+                            #data.setStatus(data.saveLeft(encoded_image))
+                            #print(data.snapstatus())
                         elif data.getPhotocat()=='3': #right
                             cv2.imwrite(data.saveRight(), video_frame)
-
+                            #data.setStatus(data.saveRight(encoded_image))
+                            #print(data.snapstatus())
                         elif data.getPhotocat()=='4': #block
                             cv2.imwrite(data.saveBlocked(), video_frame)
-
+                            #data.setStatus(data.saveBlocked(encoded_image))
+                            #print(data.snapstatus())
                         else:
                             data.setStatus('invald code, no snapshot taken')
                             print('invald code, no snapshot taken')
                     except:
                         print('error')
                     data.resetStatus()
-                    
-                    
+                if auto:
+                    print('start running')
+                    execute.process(video_frame)                                        
 
         # Output image as a byte array
         yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
@@ -148,7 +160,8 @@ def name():
     return 'i-Formula - Noob One'
 
 @app.route("/camlive")
-def streamFrames():
+def streamFrames():    
+    requestvideo = True
     return Response(encodeFrame(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 @app.route('/controls')
@@ -168,7 +181,7 @@ def controls():
         mini_i_formula.backward()
         action = 'backward'
     else:
-        mini_i_formula.stop()
+        mini_i_formula.stop()        
         action = 'stop'
 
     return action
@@ -185,6 +198,43 @@ def sample():
     i = request.args.get('i')
     data.snap(i)
     return data.snapstatus()
+
+@app.route('/train')
+def train():
+    print('Warning, need resources, cam is shutting down.')
+    cam.shutdown()
+    c = json.loads(data.count())
+    work = True
+    if c['free']<100:
+        print('Free data is not enough')
+        work = False
+    if c['blocked']<100:
+        print('Blocked data is not enough')
+        work = False
+    if c['left']<100:
+        print('Left data is not enough')
+        work = False
+    if c['right']<100:
+        print('Right data is not enough')
+        work = False
+    if work:
+        if training.testCUDA():
+            training.training()
+            return training.trainingResult()
+    else:
+        return 'Failed to train'
+    
+@app.route('/trainresult')
+def trainresult():
+    return training.trainingResult()
+
+@app.route('/autopilot')
+def executeFormula():
+    execute.preload()
+    auto = True
+    print(auto)
+    return 'Now go!'
+
 
 if __name__ == '__main__':
     cam = CSICamera(image_w=720, image_h=480, capture_width=1080, capture_height=720)
