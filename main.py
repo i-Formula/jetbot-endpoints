@@ -1,13 +1,12 @@
-from flask import Response, Flask, request
+from flask import Response, Flask, request, send_file
 from threading import Thread, Lock
 #from classes.CSICamera import CSICamera
 from classes.IFormula import IFormula
 from classes.DataIntelligent import DataIntelligent
 from classes.AITraining import AITraining
-#from classes.AIExecute import AIExecute
+from classes.AIExecute import AIExecute
 
-import time
-import json
+import time, json, os, zipfile
 
 class CSICamera:
     '''
@@ -16,7 +15,7 @@ class CSICamera:
     gstreamer init string from https://github.com/NVIDIA-AI-IOT/jetbot/blob/master/jetbot/camera.py
     '''
 
-    def gstreamer_pipeline(self, capture_width=3280, capture_height=2464, output_width=720, output_height=480,
+    def gstreamer_pipeline(self, capture_width=3280, capture_height=2464, output_width=360, output_height=240,
                            framerate=21, flip_method=0):
         return 'nvarguscamerasrc ! video/x-raw(memory:NVMM), width=%d, height=%d, format=(string)NV12, framerate=(fraction)%d/1 ! nvvidconv flip-method=%d ! nvvidconv ! video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! videoconvert ! appsink' % (
             capture_width, capture_height, framerate, flip_method, output_width, output_height)
@@ -117,23 +116,27 @@ def encodeFrame():
             if not return_key:
                 continue
             else:
-                print(auto)
+                #print(auto)
                 if data.getSnapshot():
                     try:
                         if data.getPhotocat()=='1':  #free
                             cv2.imwrite(data.saveFree(), video_frame)
+                            cv2.imwrite(data.savePath(data.getPhotocat()), video_frame)
                             #data.setStatus(data.saveFree(encoded_image))
                             #print(data.snapstatus())
                         elif data.getPhotocat()=='2': #left
                             cv2.imwrite(data.saveLeft(), video_frame)
+                            cv2.imwrite(data.savePath(data.getPhotocat()), video_frame)
                             #data.setStatus(data.saveLeft(encoded_image))
                             #print(data.snapstatus())
                         elif data.getPhotocat()=='3': #right
+                            cv2.imwrite(data.savePath(data.getPhotocat()), video_frame)
                             cv2.imwrite(data.saveRight(), video_frame)
                             #data.setStatus(data.saveRight(encoded_image))
                             #print(data.snapstatus())
                         elif data.getPhotocat()=='4': #block
                             cv2.imwrite(data.saveBlocked(), video_frame)
+                            cv2.imwrite(data.savePath(data.getPhotocat()), video_frame)
                             #data.setStatus(data.saveBlocked(encoded_image))
                             #print(data.snapstatus())
                         else:
@@ -150,7 +153,11 @@ def encodeFrame():
         yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
                bytearray(encoded_image) + b'\r\n')
         
-        
+def zipdir(path, ziph):
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            print(f'Adding {os.path.join(root, file)} to zip...')
+            ziph.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), os.path.join(path, '..')))
 
 # Create the Flask object for the application
 app = Flask(__name__)
@@ -202,20 +209,23 @@ def sample():
 @app.route('/train')
 def train():
     print('Warning, need resources, cam is shutting down.')
-    cam.shutdown()
+    #cam.shutdown()
     c = json.loads(data.count())
     work = True
-    if c['free']<100:
-        print('Free data is not enough')
-        work = False
-    if c['blocked']<100:
-        print('Blocked data is not enough')
-        work = False
-    if c['left']<100:
-        print('Left data is not enough')
-        work = False
-    if c['right']<100:
-        print('Right data is not enough')
+    #if c['free']<100:
+    #    print('Free data is not enough')
+    #    work = False
+    #if c['blocked']<100:
+    #    print('Blocked data is not enough')
+    #    work = False
+    #if c['left']<100:
+    #    print('Left data is not enough')
+    #    work = False
+    #if c['right']<100:
+    #    print('Right data is not enough')
+    #    work = False
+    if c['regress']<150:
+        print('Not enough for path testing')
         work = False
     if work:
         if training.testCUDA():
@@ -235,9 +245,30 @@ def executeFormula():
     print(auto)
     return 'Now go!'
 
+@app.route('/samples')
+def countSamples():
+    return data.count()
+
+@app.route('/download')
+def download():
+    print('Creating zip file...')
+    with zipfile.ZipFile('download.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
+        zipdir('i/', zipf)
+    print('Zip file ready')
+    return send_file('./download.zip', as_attachment=True)
+
+@app.route('/upload', methods = ['GET', 'POST'])
+def uploadModel():
+    if request.method == 'POST':
+        f = request.files['model']
+        f.save('./model/best_steering_model_xy.pth')
+        return '200'
+    else:
+        return 'Error'
+
 
 if __name__ == '__main__':
-    cam = CSICamera(image_w=720, image_h=480, capture_width=1080, capture_height=720)
+    cam = CSICamera(image_w=360, image_h=240, capture_width=1280, capture_height=720)
     mini_i_formula = IFormula(0.1)
     
     

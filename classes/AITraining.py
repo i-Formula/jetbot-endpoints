@@ -15,7 +15,7 @@ class AITraining:
         self.dataset = datasets.ImageFolder('i',
                                        transforms.Compose([
                                            transforms.ColorJitter(0.1, 0.1, 0.1, 0.1),
-                                           transforms.Resize((360, 240)),
+                                           transforms.Resize((224, 224)),
                                            transforms.ToTensor(),
                                            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                                        ]))
