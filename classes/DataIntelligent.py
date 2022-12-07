@@ -43,12 +43,12 @@ class DataIntelligent:
         return os.path.join(self.blocked_dir, f'xy_{x}_{y}_{str(uuid1())}.jpg' )
     
     def saveLeft(self):
-        x = int(OFFSET_X * 0.3)
+        x = int(OFFSET_X * 0.2)
         y = int(OFFSET_Y * 0.6)
         return os.path.join(self.left_dir, f'xy_{x}_{y}_{str(uuid1())}.jpg' )
     
     def saveRight(self):
-        x = int(OFFSET_X * 0.7)
+        x = int(OFFSET_X * 0.8)
         y = int(OFFSET_Y * 0.6)
         return os.path.join(self.right_dir, f'xy_{x}_{y}_{str(uuid1())}.jpg' )
     
@@ -59,10 +59,10 @@ class DataIntelligent:
             x =int(OFFSET_X / 2)
             y =int(OFFSET_Y * 0.6)
         elif cat == '2':
-            x = int(OFFSET_X * 0.3)
+            x = int(OFFSET_X * 0.2)
             y = int(OFFSET_Y * 0.6)
         elif cat == '3':
-            x = int(OFFSET_X * 0.7)
+            x = int(OFFSET_X * 0.8)
             y = int(OFFSET_Y * 0.6)
         elif cat == '4':
             x = int(OFFSET_X /2)
